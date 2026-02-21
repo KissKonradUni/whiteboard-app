@@ -25,6 +25,10 @@ class UserTable extends Table<User> {
         return this.insert({ name, email, password_hash });
     }
 
+    delete(id: number): void {
+        this.db.prepare(`DELETE FROM ${this.name} WHERE id = ?`).run(id);
+    }
+
     getByEmail(email: string): User | undefined {
         return this.db.prepare(`SELECT * FROM ${this.name} WHERE email = ?`).get(email) as User | undefined;
     }

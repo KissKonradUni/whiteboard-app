@@ -3,7 +3,11 @@
 	import type { Snippet } from 'svelte';
 	import type { LayoutData } from './$types';
 
-	let { data: userData, children }: { data: LayoutData, children: Snippet } = $props();
+	let { data: data, children }: { data: LayoutData, children: Snippet } = $props();
+
+    function navTo(path: string) {
+        return () => { window.location.href = path; };
+    }
 </script>
 
 <svelte:head>
@@ -15,27 +19,29 @@
 
     <div class="space"></div>
 
-    {#if userData.loggedIn}
-        <span>Welcome, {userData.name}!</span>
+    {#if data.loggedIn}
+        <button onclick={navTo('/profile')}>
+            Welcome, {data.user?.name}!
+        </button>
     {/if}
 </header>
 <nav>
-    <button>
-        <a href="/" tabindex="-1">Home</a>
+    <button onclick={navTo('/')}>
+        Home
     </button>
     
     <div class="space"></div>
 
-    {#if userData.loggedIn}
-        <button>
-            <a href="/logout" tabindex="-1">Logout</a>
+    {#if data.loggedIn}
+        <button onclick={navTo('/logout')}>
+            Logout
         </button>
     {:else}
-         <button>
-            <a href="/login" tabindex="-1">Login</a>
+         <button onclick={navTo('/login')}>
+            Login
         </button>
-        <button>
-            <a href="/register" tabindex="-1">Register</a>
+        <button onclick={navTo('/register')}>
+            Register
         </button>
     {/if}
 </nav>
@@ -60,7 +66,7 @@
     }
 
     header h1 {
-        padding: 0.5rem 1rem 0 1rem;
+        padding: 0.5rem 1rem 0.25rem 1rem;
     }
 
     div.space {
@@ -71,6 +77,9 @@
         background-color: var(--tertiary-color);
         border: none;
         border-radius: 0.5rem;
+
+        padding: 0.75em 1.5em;
+        height: 100%;
 
         transition: filter 0.1s ease-in-out;
     }
@@ -83,23 +92,12 @@
         filter: brightness(0.9);
     }
 
-    button a {
-        display: block;
-        
-        color: var(--text-color);
-
-        padding: 0.75rem 1rem;
-    }
-
-    header span {
-        margin: 0 0.5rem;
-        font-weight: bold;
-    }
-
     nav {
         display: flex;
         gap: 0.5rem;
+        
         padding: 0.5rem;
+        padding-top: 0;
 
         background-color: var(--secondary-color);
     }
