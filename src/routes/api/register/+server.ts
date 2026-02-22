@@ -1,7 +1,7 @@
 import type { RequestHandler } from "@sveltejs/kit";
 
-import UserTable from "$lib/database/user";
-import db from "$lib/db";
+import UserTable from "$lib/server/database/user";
+import db from "$lib/server/db";
 
 const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const passwordRegex = /^(?=.*[A-Za-z])(?=.*\d)[A-Za-z\d]{6,}$/; // Minimum 6 characters, at least one letter and one number

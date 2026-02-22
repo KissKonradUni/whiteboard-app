@@ -1,7 +1,7 @@
 import type { RequestHandler } from "@sveltejs/kit";
 
-import SessionsTable from "$lib/database/session";
-import db from "$lib/db";
+import SessionsTable from "$lib/server/database/session";
+import db from "$lib/server/db";
 
 export const GET: RequestHandler = async ({ cookies }) => {
     const session_token = cookies.get("session_token");

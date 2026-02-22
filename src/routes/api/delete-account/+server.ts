@@ -1,8 +1,8 @@
 import type { RequestHandler } from "@sveltejs/kit";
 
-import db from "$lib/db";
-import UserTable from "$lib/database/user";
-import { checkSession } from "$lib/checkSession";
+import db from "$lib/server/db";
+import UserTable from "$lib/server/database/user";
+import { checkSession } from "$lib/server/checkSession";
 
 export const POST: RequestHandler = async ({ request, cookies }) => {
     const session = checkSession(cookies);

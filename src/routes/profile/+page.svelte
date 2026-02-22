@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { User } from "$lib/database/user";
+	import type { User } from "$lib/server/database/user";
 	import type { LayoutData } from "../$types";
 
     let { data }: { data: LayoutData } = $props();

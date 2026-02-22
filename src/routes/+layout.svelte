@@ -3,11 +3,15 @@
 	import type { Snippet } from 'svelte';
 	import type { LayoutData } from './$types';
 
+	import { WebsocketClient } from '$lib/websocket-client';
+
 	let { data: data, children }: { data: LayoutData, children: Snippet } = $props();
 
     function navTo(path: string) {
         return () => { window.location.href = path; };
     }
+
+    WebsocketClient.getInstance();
 </script>
 
 <svelte:head>

@@ -1,5 +1,5 @@
 <script lang="ts">
-	import type { Migration } from "$lib/database/migration";
+	import type { Migration } from "$lib/server/database/migration";
 
     export let data: { migrations: Migration[] };
 </script>

@@ -1,8 +1,8 @@
 import type { RequestHandler } from "@sveltejs/kit";
 
-import UserTable from "$lib/database/user";
-import SessionsTable from "$lib/database/session";
-import db from "$lib/db";
+import UserTable from "$lib/server/database/user";
+import SessionsTable from "$lib/server/database/session";
+import db from "$lib/server/db";
 
 export const POST: RequestHandler = async ({ request, cookies }) => { 
     const { email, password } = await request.json();
