@@ -1,17 +1,19 @@
 <script lang="ts">
 	import favicon from '$lib/assets/favicon.svg';
+    import { goto } from '$app/navigation';
 	import type { Snippet } from 'svelte';
 	import type { LayoutData } from './$types';
 
-	import { WebsocketClient } from '$lib/websocket-client';
+	import { wsClient } from '$lib/stores/websocket-client';
 
 	let { data: data, children }: { data: LayoutData, children: Snippet } = $props();
 
     function navTo(path: string) {
-        return () => { window.location.href = path; };
+        return () => goto(path);
     }
+    
+    wsClient;
 
-    WebsocketClient.getInstance();
 </script>
 
 <svelte:head>
