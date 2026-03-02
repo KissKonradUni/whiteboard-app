@@ -1,42 +1,59 @@
-# sv
+# Whiteboard App
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
+A whiteboard web application built as a university team project.
 
-## Creating a project
+## Tech stack
 
-If you're seeing this, you've probably already done this step. Congrats!
+- [SvelteKit](https://kit.svelte.dev/) with TypeScript
+- [SQLite](https://www.sqlite.org/) via `better-sqlite3`
+- [Express](https://expressjs.com/) as the HTTP server
+- [Socket.io](https://socket.io/) for real-time WebSocket communication
+- [bcrypt](https://www.npmjs.com/package/bcrypt) for password hashing
+
+## Features
+
+- User registration, login, logout and account deletion
+- Session-based authentication
+- Lobby system: create, join, leave
+- Real-time communication between clients via WebSocket
+
+## Requirements
+
+- Node.js 18 or later
+- npm
+
+## Development
+
+Install dependencies:
 
 ```sh
-# create a new project
-npx sv create my-app
+npm install
 ```
 
-To recreate this project with the same configuration:
-
-```sh
-# recreate this project
-npx sv create --template minimal --types ts --install npm whiteboard-app
-```
-
-## Developing
-
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+Start the development server:
 
 ```sh
 npm run dev
-
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
 ```
 
-## Building
+The app will be available at `http://localhost:5173` by default.
 
-To create a production version of your app:
+## Production build
+
+Build the app:
 
 ```sh
 npm run build
 ```
 
-You can preview the production build with `npm run preview`.
+Start the production server:
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+```sh
+node server.js
+```
+
+## Type checking
+
+```sh
+npm run check
+```
