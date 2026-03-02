@@ -11,7 +11,7 @@ export const POST: RequestHandler = async ({ request, cookies }) => {
     }
 
     const user = session.user!;
-    new UserTable(db).delete(user.id);
+    new UserTable(db).delete(user.id!);
 
     cookies.delete("session_token", { path: "/" });
     

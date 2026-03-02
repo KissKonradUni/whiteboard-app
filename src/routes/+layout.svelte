@@ -13,7 +13,6 @@
     }
     
     wsClient;
-
 </script>
 
 <svelte:head>
@@ -35,6 +34,11 @@
     <button onclick={navTo('/')}>
         Home
     </button>
+    {#if data.loggedIn}
+        <button onclick={navTo('/lobby')}>
+            Lobby
+        </button>
+    {/if}
     
     <div class="space"></div>
 
