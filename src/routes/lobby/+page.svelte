@@ -1,6 +1,8 @@
 <script lang="ts">
+    import { onDestroy } from "svelte";
     import { untrack } from "svelte";
     import type { Lobby } from "$lib/server/lobby";
+    import { wsClient } from "$lib/stores/websocket-client";
 
     let { data }: { data: { currentLobby: Lobby | null, lobbies: Lobby[], user: { id: number, name: string } } } = $props();
 
@@ -9,6 +11,29 @@
     let currentLobby: Lobby | null = $state(untrack(() => data.currentLobby));
     let lobbies: Lobby[] = $state(untrack(() => data.lobbies));
     let errorMsg: string = $state("");
+
+    function applyLobbySnapshot(snapshot: Lobby[]) {
+        lobbies = snapshot;
+        currentLobby = snapshot.find((lobby) =>
+            lobby.users?.some((user) => user.id === data.user.id)
+        ) ?? null;
+    }
+
+    const handleLobbyUpdate = (payload: unknown) => {
+        if (!Array.isArray(payload)) {
+            return;
+        }
+
+        applyLobbySnapshot(payload as Lobby[]);
+    };
+
+    if (wsClient) {
+        wsClient.on("lobby:update", handleLobbyUpdate);
+    }
+
+    onDestroy(() => {
+        wsClient?.off("lobby:update", handleLobbyUpdate);
+    });
 
     async function createLobby() {
         errorMsg = "";

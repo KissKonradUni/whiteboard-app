@@ -3,6 +3,7 @@ import { error, json } from "@sveltejs/kit";
 
 import { checkSession } from "$lib/server/checkSession";
 import { lobbyManager } from "$lib/server/lobby";
+import { WebSocketManager } from "$lib/server/websocket";
 import UserTable from "$lib/server/database/user";
 import db from "$lib/server/db";
 
@@ -23,5 +24,7 @@ export const POST: RequestHandler = async ({ cookies }) => {
     }
 
     lobbyManager.leaveLobby(lobby.hash, user.id);
+    WebSocketManager.getInstance().emit("lobby:update", lobbyManager.getLobbies());
+
     return json({ success: true }, { status: 200 });
 };

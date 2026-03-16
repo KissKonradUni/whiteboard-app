@@ -3,6 +3,7 @@ import { error, json } from "@sveltejs/kit";
 
 import { checkSession } from "$lib/server/checkSession";
 import { lobbyManager } from "$lib/server/lobby";
+import { WebSocketManager } from "$lib/server/websocket";
 import UserTable from "$lib/server/database/user";
 import db from "$lib/server/db";
 
@@ -32,6 +33,8 @@ export const POST: RequestHandler = async ({ params, cookies }) => {
     if (!lobby) {
         return json({ error: "Lobby not found" }, { status: 404 });
     }
+
+    WebSocketManager.getInstance().emit("lobby:update", lobbyManager.getLobbies());
 
     return json(lobby, { status: 200 });
 };
