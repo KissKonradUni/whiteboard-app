@@ -23,7 +23,7 @@ export const POST: RequestHandler = async ({ request }) => {
     }
 
     if (!passwordRegex.test(password)) {
-        return new Response(JSON.stringify({ error: "Password must be at least 6 characters" }), { status: 400 });
+        return new Response(JSON.stringify({ error: "Password must be at least 6 characters, and include at least one letter and one number" }), { status: 400 });
     }
 
     new UserTable(db).register(name, email, password);

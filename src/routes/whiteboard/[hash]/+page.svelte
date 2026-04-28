@@ -1,11 +1,13 @@
 <script lang="ts">
     import { onDestroy, onMount } from "svelte";
     import { wsClient } from "$lib/stores/websocket-client";
+    import Whiteboard from "$lib/whiteboard";
 
     let { data }: { data: { hash: string; lobbyName: string; user: { id: number; name: string } } } = $props();
 
+    let wrapperEl: HTMLDivElement | null = $state(null);
     let canvasEl: HTMLCanvasElement | null = $state(null);
-    let ctx: CanvasRenderingContext2D | null = $state(null);
+    let whiteboard: Whiteboard | null = $state(null);
 
     let wsStatus: "connected" | "disconnected" | "error" = $state("disconnected");
     let lastSyncPayload: unknown = $state(null);
@@ -29,17 +31,11 @@
     }
 
     function setupCanvas() {
-        if (!canvasEl) {
+        if (!wrapperEl || !canvasEl) {
             return;
         }
 
-        ctx = canvasEl.getContext("2d");
-        if (!ctx) {
-            return;
-        }
-
-        ctx.fillStyle = "#ffffff";
-        ctx.fillRect(0, 0, canvasEl.width, canvasEl.height);
+        whiteboard = new Whiteboard(wrapperEl, canvasEl);
     }
 
     onMount(() => {
@@ -61,28 +57,22 @@
     });
 </script>
 
-<section class="whiteboard-page">
-    <div class="meta">
-        <h2>{data.lobbyName} Whiteboard</h2>
-        <p>Socket: {wsStatus}</p>
-        <button onclick={() => emitWhiteboardSync({ type: "ping", at: Date.now(), userId: data.user.id })}>
-            Send test sync event
-        </button>
-        {#if lastSyncPayload}
-            <p class="muted">Sync payload received.</p>
-        {/if}
-    </div>
+<div class="meta">
+    <h2>{data.lobbyName} Whiteboard</h2>
+    <p>Socket: {wsStatus}</p>
+    <button onclick={() => emitWhiteboardSync({ type: "ping", at: Date.now(), userId: data.user.id })}>
+        Send test sync event
+    </button>
+    {#if lastSyncPayload}
+        <p class="muted">Sync payload received.</p>
+    {/if}
+</div>
 
-    <canvas bind:this={canvasEl} width="1280" height="720" aria-label="Whiteboard canvas"></canvas>
-</section>
+<div class="canvas-wrapper" bind:this={wrapperEl}>
+    <canvas bind:this={canvasEl} width="1000" height="10" aria-label="Whiteboard canvas"></canvas>
+</div>
 
 <style>
-    .whiteboard-page {
-        display: flex;
-        flex-direction: column;
-        gap: 1rem;
-    }
-
     .meta {
         display: flex;
         align-items: center;
@@ -90,10 +80,17 @@
         gap: 0.75rem;
     }
 
+    .canvas-wrapper {
+        flex: 1;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+    }
+
     canvas {
         width: 100%;
         max-width: 100%;
-        aspect-ratio: 16 / 9;
+
         border: 1px solid #666;
         border-radius: 0.5rem;
         background-color: #fff;

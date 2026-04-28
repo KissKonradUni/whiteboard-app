@@ -61,7 +61,7 @@
 </main>
 
 <footer>
-
+    &copy; 2026 Whiteboard App
 </footer>
 
 <style>
@@ -113,6 +113,19 @@
     }
 
     main {
+        display: flex;
+        flex-direction: column;
+
+        flex: 1;
         padding: 1rem;
+    }
+
+    footer {
+        padding: 0.5rem;
+        
+        font-size: 0.5em;
+        text-align: center;
+        
+        background-color: var(--secondary-color);
     }
 </style>
