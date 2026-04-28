@@ -1,6 +1,7 @@
 <script lang="ts">
     import { onDestroy } from "svelte";
     import { untrack } from "svelte";
+    import { goto } from "$app/navigation";
     import type { Lobby } from "$lib/server/lobby";
     import { wsClient } from "$lib/stores/websocket-client";
 
@@ -109,6 +110,7 @@
                     <li>{user.name}</li>
                 {/each}
             </ul>
+            <button onclick={() => goto(`/whiteboard/${currentLobby?.hash}`)}>Open Whiteboard</button>
             <button class="danger" onclick={leaveLobby}>Leave Lobby</button>
         </div>
     {:else}

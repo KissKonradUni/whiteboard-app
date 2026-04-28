@@ -34,6 +34,15 @@ class LobbyManager {
         );
     }
 
+    public isUserInLobby(hash: string, userID: number): boolean {
+        const lobby = this.cache.get(hash);
+        if (!lobby?.users) {
+            return false;
+        }
+
+        return lobby.users.some((user) => user.id === userID);
+    }
+
     public createLobby(name: string, userID: number): Lobby {
         const hash = Math.random().toString(36).substring(2, 8);
         const user = new UserTable(db).get(userID);
