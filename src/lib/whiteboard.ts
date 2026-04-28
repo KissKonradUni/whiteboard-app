@@ -1,3 +1,38 @@
+type WhiteboardElement = {
+    type: "line" | "rect" | "ellipse" | "text";
+    x: number;
+    y: number;
+}
+
+type LineElement = WhiteboardElement & {
+    type: "line";
+    x2: number;
+    y2: number;
+    color: string;
+    width: number;
+}
+
+type RectElement = WhiteboardElement & {
+    type: "rect";
+    width: number;
+    height: number;
+    color: string;
+}
+
+type EllipseElement = WhiteboardElement & {
+    type: "ellipse";
+    radiusX: number;
+    radiusY: number;
+    color: string;
+}
+
+type TextElement = WhiteboardElement & {
+    type: "text";
+    text: string;
+    fontSize: number;
+    color: string;
+}
+
 class Whiteboard {
     private wrapperElement: HTMLDivElement;
     private canvasElement: HTMLCanvasElement;
@@ -7,6 +42,8 @@ class Whiteboard {
     private viewport: { x: number; y: number, zoom: number } = { x: 0, y: 0, zoom: 1 };
 
     private movement = { isMoving: false, lastX: 0, lastY: 0 };
+
+    private elements: WhiteboardElement[] = [];
 
     constructor(wrapperElement: HTMLDivElement, canvasElement: HTMLCanvasElement) {
         this.wrapperElement = wrapperElement;
@@ -59,6 +96,54 @@ class Whiteboard {
             }
         });
         window.requestAnimationFrame(() => this.draw());
+
+        // Add random elements for testing
+        this.elements.push(
+            { type: "line", x: -100, y: -100, x2: 100, y2: 100, color: "red", width: 5 } as LineElement,
+            { type: "rect", x: -150, y: -50, width: 100, height: 50, color: "blue" } as RectElement,
+            { type: "ellipse", x: 100, y: 100, radiusX: 50, radiusY: 25, color: "green" } as EllipseElement,
+            { type: "text", x: -200, y: 200, text: "Hello World!", fontSize: 24, color: "purple" } as TextElement,
+        );
+    }
+
+    private drawLine(ctx: CanvasRenderingContext2D, element: LineElement) {
+        ctx.strokeStyle = element.color;
+        ctx.lineWidth = element.width;
+        ctx.beginPath();
+        ctx.moveTo(element.x, -element.y);
+        ctx.lineTo(element.x2, -element.y2);
+        ctx.stroke();
+    }
+
+    private drawRect(ctx: CanvasRenderingContext2D, element: RectElement) {
+        ctx.fillStyle = element.color;
+        ctx.fillRect(element.x, -element.y, element.width, element.height);
+    }
+
+    private drawEllipse(ctx: CanvasRenderingContext2D, element: EllipseElement) {
+        ctx.fillStyle = element.color;
+        ctx.beginPath();
+        ctx.ellipse(element.x, -element.y, element.radiusX, element.radiusY, 0, 0, 2 * Math.PI);
+        ctx.fill();
+    }
+
+    private drawText(ctx: CanvasRenderingContext2D, element: TextElement) {
+        ctx.fillStyle = element.color;
+        ctx.font = `${element.fontSize}px sans-serif`;
+        ctx.fillText(element.text, element.x, -element.y);
+    }
+
+    private drawElement(ctx: CanvasRenderingContext2D, element: WhiteboardElement) {
+        switch (element.type) {
+            case "line":
+                return this.drawLine(ctx, element as LineElement);
+            case "rect":
+                return this.drawRect(ctx, element as RectElement);
+            case "ellipse":
+                return this.drawEllipse(ctx, element as EllipseElement);
+            case "text":
+                return this.drawText(ctx, element as TextElement);
+        }
     }
 
     private draw() {
@@ -109,6 +194,11 @@ class Whiteboard {
         ctx.moveTo(transformedBounds.left, 0);
         ctx.lineTo(transformedBounds.right, 0);
         ctx.stroke();
+
+        // Draw elements
+        for (const element of this.elements) {
+            this.drawElement(ctx, element);
+        }
 
         window.requestAnimationFrame(() => this.draw());
     }
