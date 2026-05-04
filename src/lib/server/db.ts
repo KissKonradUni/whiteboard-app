@@ -5,7 +5,8 @@ const Database = BetterSqlite3.default;
 import MigrationsTable from './database/migration';
 import UserTable from './database/user';
 import SessionsTable from './database/session';
-import { browser } from '$app/environment';
+import UserSettingsTable from './database/user_settings';
+import UserStatsTable from './database/user_stats';
 
 class DBManager {
     private static instance: DBManager;
@@ -26,20 +27,20 @@ class DBManager {
         this.db = new Database('whiteboard.db');
         this.db.pragma('journal_mode = WAL');
 
-        // If the migrations table is empty, apply the initial migration
+        // Initial migration (runs only once, on first startup)
         try {
             this.db.prepare('SELECT COUNT(*) AS count FROM migrations').get();
         } catch (e) {
             console.log('Applying initial migration...');
-
-            // PUT NEW TABLES HERE
             new MigrationsTable(this.db).migrate();
             new UserTable(this.db).migrate();
             new SessionsTable(this.db).migrate();
-
-            // Log the migration
             this.db.prepare('INSERT INTO migrations (name) VALUES (?)').run('initial_migration');
         }
+
+        // These tables use CREATE TABLE IF NOT EXISTS — safe to run on every startup
+        new UserSettingsTable(this.db).migrate();
+        new UserStatsTable(this.db).migrate();
     }
 }
 

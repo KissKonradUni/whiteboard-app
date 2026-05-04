@@ -4,7 +4,9 @@ import SessionsTable from "./database/session";
 import UserTable, { type User } from "./database/user";
 import db from "./db";
 
-export function checkSession(cookies: Cookies): { loggedIn: boolean; user: Partial<User> | null } {
+export type SessionUser = Omit<User, 'password_hash'>;
+
+export function checkSession(cookies: Cookies): { loggedIn: boolean; user: SessionUser | null } {
     const session_token = cookies.get("session_token");
     if (!session_token) {
         return { loggedIn: false, user: null };
@@ -20,6 +22,6 @@ export function checkSession(cookies: Cookies): { loggedIn: boolean; user: Parti
         return { loggedIn: false, user: null };
     }
 
-    // Using partial we omit the password_hash field, so it won't be accidentally leaked anywhere
-    return { loggedIn: true, user: { name: user.name, email: user.email } };
+    // Omit password_hash so it won't be accidentally leaked
+    return { loggedIn: true, user: { id: user.id, name: user.name, email: user.email } };
 }

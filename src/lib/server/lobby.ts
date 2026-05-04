@@ -1,10 +1,17 @@
 import UserTable from "./database/user";
 import db from "./db";
 
+export interface StoredElement {
+    id: string;
+    userId: number;
+    data: unknown;
+}
+
 export interface Lobby {
     hash: string;
     name: string;
     users?: { id: number, name: string }[];
+    elements: StoredElement[];
 }
 
 class LobbyManager {
@@ -36,23 +43,35 @@ class LobbyManager {
 
     public isUserInLobby(hash: string, userID: number): boolean {
         const lobby = this.cache.get(hash);
-        if (!lobby?.users) {
-            return false;
-        }
-
+        if (!lobby?.users) return false;
         return lobby.users.some((user) => user.id === userID);
+    }
+
+    public getElements(hash: string): StoredElement[] {
+        return this.cache.get(hash)?.elements ?? [];
+    }
+
+    public addElement(hash: string, element: StoredElement): void {
+        const lobby = this.cache.get(hash);
+        if (lobby) lobby.elements.push(element);
+    }
+
+    public removeElement(hash: string, elementId: string): void {
+        const lobby = this.cache.get(hash);
+        if (lobby) {
+            lobby.elements = lobby.elements.filter(e => e.id !== elementId);
+        }
     }
 
     public createLobby(name: string, userID: number): Lobby {
         const hash = Math.random().toString(36).substring(2, 8);
         const user = new UserTable(db).get(userID);
-        const lobby: Lobby = { 
+        const lobby: Lobby = {
             hash,
             name,
-            users: [
-                { id: userID, name: user?.name ?? "Unknown User" }
-            ]
-        }
+            users: [{ id: userID, name: user?.name ?? "Unknown User" }],
+            elements: [],
+        };
         this.cache.set(hash, lobby);
         return lobby;
     }
@@ -64,10 +83,7 @@ class LobbyManager {
         const user = new UserTable(db).get(userID);
         if (!user) return undefined;
 
-        // Check if user is already in the lobby
-        if (lobby.users?.some(u => u.id === userID)) {
-            return lobby;
-        }
+        if (lobby.users?.some(u => u.id === userID)) return lobby;
 
         lobby.users = lobby.users || [];
         lobby.users.push({ id: userID, name: user.name });

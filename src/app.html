@@ -12,6 +12,19 @@
                 --text-color: #eee;
             }
 
+            :root[data-theme="light"] {
+                --primary-color: #f0f8ff;
+                --secondary-color: #cce8f4;
+                --tertiary-color: #99d0e8;
+                --accent-color: #005577;
+                --text-color: #002834;
+            }
+
+            [data-theme="light"],
+            [data-theme="light"] body {
+                color-scheme: light;
+            }
+
             * {
                 box-sizing: border-box;
             }

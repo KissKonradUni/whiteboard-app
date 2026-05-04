@@ -1,58 +1,49 @@
 <script lang="ts">
-	import favicon from '$lib/assets/favicon.svg';
+    import favicon from '$lib/assets/favicon.svg';
     import { goto } from '$app/navigation';
-	import type { Snippet } from 'svelte';
-	import type { LayoutData } from './$types';
+    import type { Snippet } from 'svelte';
+    import type { LayoutData } from './$types';
+    import { wsClient } from '$lib/stores/websocket-client';
 
-	import { wsClient } from '$lib/stores/websocket-client';
-
-	let { data: data, children }: { data: LayoutData, children: Snippet } = $props();
+    let { data, children }: { data: LayoutData; children: Snippet } = $props();
 
     function navTo(path: string) {
         return () => goto(path);
     }
-    
+
+    // Apply theme from user settings (localStorage fallback for guests)
+    $effect(() => {
+        const theme = data.theme ?? localStorage.getItem('theme') ?? 'dark';
+        document.documentElement.setAttribute('data-theme', theme);
+    });
+
     wsClient;
 </script>
 
 <svelte:head>
-	<link rel="icon" href={favicon} />
+    <link rel="icon" href={favicon} />
 </svelte:head>
 
 <header>
     <h1>Whiteboard App</h1>
-
     <div class="space"></div>
-
     {#if data.loggedIn}
-        <button onclick={navTo('/profile')}>
-            Welcome, {data.user?.name}!
-        </button>
+        <button onclick={navTo('/profile')}>Welcome, {data.user?.name}!</button>
     {/if}
 </header>
-<nav>
-    <button onclick={navTo('/')}>
-        Home
-    </button>
-    {#if data.loggedIn}
-        <button onclick={navTo('/lobby')}>
-            Lobby
-        </button>
-    {/if}
-    
-    <div class="space"></div>
 
+<nav>
+    <button onclick={navTo('/')}>Home</button>
     {#if data.loggedIn}
-        <button onclick={navTo('/logout')}>
-            Logout
-        </button>
+        <button onclick={navTo('/lobby')}>Lobby</button>
+        <button onclick={navTo('/settings')}>Beállítások</button>
+    {/if}
+    <div class="space"></div>
+    {#if data.loggedIn}
+        <button onclick={navTo('/logout')}>Logout</button>
     {:else}
-         <button onclick={navTo('/login')}>
-            Login
-        </button>
-        <button onclick={navTo('/register')}>
-            Register
-        </button>
+        <button onclick={navTo('/login')}>Login</button>
+        <button onclick={navTo('/register')}>Register</button>
     {/if}
 </nav>
 
@@ -60,18 +51,14 @@
     {@render children()}
 </main>
 
-<footer>
-    &copy; 2026 Whiteboard App
-</footer>
+<footer>&copy; 2026 Whiteboard App</footer>
 
 <style>
     header {
         display: flex;
         align-items: center;
-        
         gap: 0.5rem;
         padding-right: 0.5rem;
-
         background-color: var(--secondary-color);
     }
 
@@ -79,53 +66,41 @@
         padding: 0.5rem 1rem 0.25rem 1rem;
     }
 
-    div.space {
-        flex-grow: 1;
-    }
+    div.space { flex-grow: 1; }
 
     button {
         background-color: var(--tertiary-color);
+        color: var(--text-color);
         border: none;
         border-radius: 0.5rem;
-
         padding: 0.75em 1.5em;
         height: 100%;
-
+        cursor: pointer;
         transition: filter 0.1s ease-in-out;
     }
 
-    button:hover {
-        filter: brightness(1.1);
-    }
-
-    button:active {
-        filter: brightness(0.9);
-    }
+    button:hover  { filter: brightness(1.1); }
+    button:active { filter: brightness(0.9); }
 
     nav {
         display: flex;
         gap: 0.5rem;
-        
         padding: 0.5rem;
         padding-top: 0;
-
         background-color: var(--secondary-color);
     }
 
     main {
         display: flex;
         flex-direction: column;
-
         flex: 1;
         padding: 1rem;
     }
 
     footer {
         padding: 0.5rem;
-        
         font-size: 0.5em;
         text-align: center;
-        
         background-color: var(--secondary-color);
     }
 </style>
