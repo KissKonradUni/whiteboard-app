@@ -10,6 +10,7 @@ export interface StoredElement {
 export interface Lobby {
     hash: string;
     name: string;
+    templateId?: string;
     users?: { id: number, name: string }[];
     elements: StoredElement[];
 }
@@ -63,12 +64,13 @@ class LobbyManager {
         }
     }
 
-    public createLobby(name: string, userID: number): Lobby {
+    public createLobby(name: string, userID: number, templateId?: string): Lobby {
         const hash = Math.random().toString(36).substring(2, 8);
         const user = new UserTable(db).get(userID);
         const lobby: Lobby = {
             hash,
             name,
+            templateId: templateId || undefined,
             users: [{ id: userID, name: user?.name ?? "Unknown User" }],
             elements: [],
         };

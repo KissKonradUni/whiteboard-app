@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { invalidateAll } from '$app/navigation';
     import type { PageData } from './$types';
 
     let { data }: { data: PageData } = $props();
@@ -6,12 +7,14 @@
     let theme: string = $state('dark');
     let gridVisible: boolean = $state(true);
     let iconSize: string = $state('md');
+    let aiChatEnabled: boolean = $state(true);
 
     // Initialize once from server data
     $effect.pre(() => {
         theme = data.settings.theme;
         gridVisible = data.settings.grid_visible === 1;
         iconSize = data.settings.icon_size;
+        aiChatEnabled = data.settings.ai_chat_visible !== 0;
     });
 
     let saving = $state(false);
@@ -24,13 +27,14 @@
             const res = await fetch('/api/settings', {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ theme, grid_visible: gridVisible, icon_size: iconSize }),
+                body: JSON.stringify({ theme, grid_visible: gridVisible, icon_size: iconSize, ai_chat_visible: aiChatEnabled }),
             });
             if (res.ok) {
                 saved = true;
-                // Apply theme immediately
                 document.documentElement.setAttribute('data-theme', theme);
+                document.documentElement.setAttribute('data-icon-size', iconSize);
                 localStorage.setItem('theme', theme);
+                await invalidateAll();
             }
         } finally {
             saving = false;
@@ -68,15 +72,24 @@
                 </div>
             </label>
         </section>
-<!-- 
-        <section>
-            <h2>Canvas</h2>
 
-            <label class="setting-row checkbox-row">
-                <span>Rács megjelenítése alapértelmezetten</span>
-                <input type="checkbox" bind:checked={gridVisible} />
+        <section>
+            <h2>AI Segítő</h2>
+
+            <label class="setting-row">
+                <span>AI chat gomb megjelenítése</span>
+                <div class="toggle-group">
+                    <button
+                        class:active={aiChatEnabled}
+                        onclick={() => (aiChatEnabled = true)}
+                    >Bekapcsolva</button>
+                    <button
+                        class:active={!aiChatEnabled}
+                        onclick={() => (aiChatEnabled = false)}
+                    >Kikapcsolva</button>
+                </div>
             </label>
-        </section> -->
+        </section>
 
         <div class="actions">
             {#if saved}

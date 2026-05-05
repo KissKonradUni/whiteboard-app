@@ -27,20 +27,27 @@ class DBManager {
         this.db = new Database('whiteboard.db');
         this.db.pragma('journal_mode = WAL');
 
-        // Initial migration (runs only once, on first startup)
-        try {
-            this.db.prepare('SELECT COUNT(*) AS count FROM migrations').get();
-        } catch (e) {
-            console.log('Applying initial migration...');
-            new MigrationsTable(this.db).migrate();
+        // Always ensure the migrations table exists first
+        new MigrationsTable(this.db).migrate();
+
+        const applied = new Set(
+            (this.db.prepare('SELECT name FROM migrations').all() as { name: string }[]).map(m => m.name)
+        );
+
+        const run = (name: string, fn: () => void) => {
+            if (applied.has(name)) return;
+            fn();
+            this.db.prepare('INSERT INTO migrations (name) VALUES (?)').run(name);
+            applied.add(name);
+        };
+
+        run('initial_migration', () => {
             new UserTable(this.db).migrate();
             new SessionsTable(this.db).migrate();
-            this.db.prepare('INSERT INTO migrations (name) VALUES (?)').run('initial_migration');
-        }
+        });
 
-        // These tables use CREATE TABLE IF NOT EXISTS — safe to run on every startup
-        new UserSettingsTable(this.db).migrate();
-        new UserStatsTable(this.db).migrate();
+        run('user_settings', () => new UserSettingsTable(this.db).migrate());
+        run('user_stats',    () => new UserStatsTable(this.db).migrate());
     }
 }
 

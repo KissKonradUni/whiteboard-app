@@ -34,6 +34,6 @@ export const load: PageServerLoad = async ({ cookies, params }) => {
     return {
         hash,
         lobbyName: lobby.name,
-        user: { id: user.id, name: user.name }
+        user: { id: user.id, name: user.name },
     };
 };

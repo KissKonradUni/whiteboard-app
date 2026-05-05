@@ -1,3 +1,5 @@
+import type { Template } from './templates';
+
 export type WhiteboardElement = {
     id?: string;
     type: "line" | "rect" | "ellipse" | "text" | "path";
@@ -41,7 +43,7 @@ export type PathElement = WhiteboardElement & {
     width: number;
 }
 
-export type Tool = 'pan' | 'pen' | 'line' | 'rect' | 'ellipse' | 'eraser';
+export type Tool = 'pan' | 'pen' | 'line' | 'rect' | 'ellipse' | 'eraser' | 'text';
 
 const CURSOR_COLORS = ['#e74c3c', '#3498db', '#2ecc71', '#f39c12', '#9b59b6', '#1abc9c'];
 
@@ -64,13 +66,20 @@ class Whiteboard {
     onElementAdded: ((el: WhiteboardElement) => void) | null = null;
     onCursorMove: ((x: number, y: number) => void) | null = null;
 
+    private activeTemplate: Template | null = null;
+    private activePath2D: Path2D | null = null;
+    private cursorOverCanvas = false;
+
     // Internal drawing state
     private movement = { isMoving: false, lastX: 0, lastY: 0 };
     private isDrawing = false;
     private drawStart = { x: 0, y: 0 };
     private currentPoints: { x: number; y: number }[] = [];
     private cursorWorld = { x: 0, y: 0 };
+    private cursorScreenPos = { x: 0, y: 0 };
     private lastCursorEmit = 0;
+    private textInputActive = false;
+    private textInputCooldown = 0;
 
     constructor(wrapperElement: HTMLDivElement, canvasElement: HTMLCanvasElement) {
         this.wrapperElement = wrapperElement;
@@ -94,7 +103,11 @@ class Whiteboard {
 
         window.addEventListener("resize", resize);
 
-        window.addEventListener("wheel", (e) => {
+        this.canvasElement.addEventListener("mouseenter", () => { this.cursorOverCanvas = true; });
+        this.canvasElement.addEventListener("mouseleave", () => { this.cursorOverCanvas = false; });
+
+        // Scoped to wrapper so the AI chat panel can still scroll
+        this.wrapperElement.addEventListener("wheel", (e) => {
             if (!e.ctrlKey) {
                 e.preventDefault();
                 this.zoom(e.deltaY * -1);
@@ -107,12 +120,25 @@ class Whiteboard {
                 this.movement.isMoving = true;
                 this.movement.lastX = e.clientX;
                 this.movement.lastY = e.clientY;
+            } else if (this.currentTool === 'text') {
+                // Text input is handled by the click event (after full click cycle)
+                // so focus isn't stolen by the mousedown processing
             } else {
                 this.isDrawing = true;
                 const world = this.screenToWorld(e.clientX, e.clientY);
                 this.drawStart = world;
                 this.currentPoints = [world];
             }
+        });
+
+        // Text tool: use click (fires after mouseup) so the input can be focused cleanly
+        this.canvasElement.addEventListener("click", (e) => {
+            if (this.currentTool !== 'text') return;
+            if (this.textInputActive) return;
+            // Brief cooldown after a finalize so blur-then-click doesn't reopen immediately
+            if (Date.now() - this.textInputCooldown < 120) return;
+            const world = this.screenToWorld(e.clientX, e.clientY);
+            this.handleTextInput(world.x, world.y);
         });
 
         window.addEventListener("mousemove", (e) => {
@@ -122,6 +148,7 @@ class Whiteboard {
                 return;
             }
 
+            this.cursorScreenPos = { x: e.clientX, y: e.clientY };
             const world = this.screenToWorld(e.clientX, e.clientY);
             this.cursorWorld = world;
 
@@ -163,6 +190,10 @@ class Whiteboard {
     setColor(color: string) { this.currentColor = color; }
     setWidth(width: number) { this.currentWidth = width; }
     setGrid(v: boolean) { this.showGrid = v; }
+    setTemplate(t: Template | null) {
+        this.activeTemplate = t;
+        this.activePath2D = t ? new Path2D(t.svgPath) : null;
+    }
 
     addElement(el: WhiteboardElement) {
         this.elements.push(el);
@@ -277,6 +308,71 @@ class Whiteboard {
         el.id = crypto.randomUUID();
         this.elements.push(el);
         this.onElementAdded?.(el);
+    }
+
+    // --- Text input overlay ---
+
+    private handleTextInput(wx: number, wy: number) {
+        this.textInputActive = true;
+
+        const screen = this.worldToScreen(wx, wy);
+        const canvasRect = this.canvasElement.getBoundingClientRect();
+
+        const scaledFontSize = Math.round(Math.max(13, 16 * this.viewport.zoom));
+
+        // Determine a contrasting border colour (drawing colour) but always use dark text
+        // so the input is readable regardless of which drawing colour is selected.
+        const borderColor = this.currentColor || '#3377ff';
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        Object.assign(input.style, {
+            position:     'fixed',
+            left:         `${canvasRect.left + screen.x}px`,
+            top:          `${canvasRect.top  + screen.y}px`,
+            transform:    'translateY(-50%)',
+            background:   '#ffffff',
+            border:       `2px solid ${borderColor}`,
+            borderRadius: '3px',
+            padding:      '3px 7px',
+            fontSize:     `${scaledFontSize}px`,
+            fontFamily:   'sans-serif',
+            color:        '#111111',   // Always dark — actual element uses currentColor
+            outline:      'none',
+            minWidth:     '90px',
+            zIndex:       '9999',
+            boxShadow:    '0 2px 8px rgba(0,0,0,0.25)',
+        });
+
+        document.body.appendChild(input);
+        // Defer focus until after the click event cycle completes
+        requestAnimationFrame(() => input.focus());
+
+        const finalize = () => {
+            this.textInputActive = false;
+            this.textInputCooldown = Date.now();
+            const text = input.value.trim();
+            input.remove();
+            if (!text) return;
+            const el: TextElement = {
+                id: crypto.randomUUID(),
+                type: 'text',
+                x: wx, y: wy,
+                text,
+                fontSize: 16,
+                color: this.currentColor,
+            };
+            this.elements.push(el);
+            this.onElementAdded?.(el);
+        };
+
+        input.addEventListener('blur', finalize);
+        input.addEventListener('keydown', (e) => {
+            // Prevent Ctrl+Z undo from firing while typing
+            e.stopPropagation();
+            if (e.key === 'Enter')  { e.preventDefault(); input.blur(); }
+            if (e.key === 'Escape') { input.value = '';   input.blur(); }
+        });
     }
 
     // --- Draw methods ---
@@ -416,7 +512,51 @@ class Whiteboard {
         }
     }
 
+    private drawLocalCursor() {
+        if (!this.cursorOverCanvas || this.currentTool === 'pan') return;
+        const ctx = this.ctx;
+        ctx.resetTransform();
+
+        const { x, y } = this.worldToScreen(this.cursorWorld.x, this.cursorWorld.y);
+
+        if (this.currentTool === 'eraser') {
+            const radius = Math.max(6, (this.currentWidth * 2.5) * this.viewport.zoom);
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = '#555';
+            ctx.beginPath();
+            ctx.arc(x, y, radius, 0, 2 * Math.PI);
+            ctx.stroke();
+        } else {
+            const size = 8;
+            const gap  = 3;
+            ctx.lineCap = 'round';
+
+            // White outline for visibility on dark elements
+            ctx.lineWidth   = 3;
+            ctx.strokeStyle = '#fff';
+            ctx.beginPath();
+            ctx.moveTo(x - size, y); ctx.lineTo(x - gap, y);
+            ctx.moveTo(x + gap,  y); ctx.lineTo(x + size, y);
+            ctx.moveTo(x, y - size); ctx.lineTo(x, y - gap);
+            ctx.moveTo(x, y + gap);  ctx.lineTo(x, y + size);
+            ctx.stroke();
+
+            // Dark crosshair on top
+            ctx.lineWidth   = 1;
+            ctx.strokeStyle = '#111';
+            ctx.beginPath();
+            ctx.moveTo(x - size, y); ctx.lineTo(x - gap, y);
+            ctx.moveTo(x + gap,  y); ctx.lineTo(x + size, y);
+            ctx.moveTo(x, y - size); ctx.lineTo(x, y - gap);
+            ctx.moveTo(x, y + gap);  ctx.lineTo(x, y + size);
+            ctx.stroke();
+        }
+    }
+
     private draw() {
+        // Recompute from screen coords so ghost preview stays correct after pan/zoom
+        this.cursorWorld = this.screenToWorld(this.cursorScreenPos.x, this.cursorScreenPos.y);
+
         const ctx = this.ctx;
 
         ctx.resetTransform();
@@ -462,6 +602,28 @@ class Whiteboard {
             ctx.stroke();
         }
 
+        // Template guide (semi-transparent, drawn before elements so drawings appear on top)
+        if (this.activeTemplate) {
+            ctx.save();
+            ctx.globalAlpha = 0.22;
+            ctx.strokeStyle = '#4477dd';
+            ctx.lineWidth = 2.5;
+            ctx.setLineDash([7, 4]);
+            ctx.fillStyle = 'rgba(80, 130, 220, 0.05)';
+
+            // SVG path is in 0-200 space, centered at (100,100).
+            // Shift so the center aligns with the world origin.
+            ctx.translate(-100, -100);
+
+            if (this.activePath2D) {
+                ctx.fill(this.activePath2D);
+                ctx.stroke(this.activePath2D);
+            }
+
+            ctx.setLineDash([]);
+            ctx.restore();
+        }
+
         // Elements
         for (const element of this.elements) {
             this.drawElement(ctx, element);
@@ -472,10 +634,11 @@ class Whiteboard {
             this.drawGhost(ctx);
         }
 
-        // Peer cursors (screen-space, must be last)
+        // Peer cursors + local cursor indicator (screen-space, must be last)
         if (this.peerCursors.size > 0) {
             this.drawPeerCursors();
         }
+        this.drawLocalCursor();
 
         window.requestAnimationFrame(() => this.draw());
     }

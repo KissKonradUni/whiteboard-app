@@ -2,7 +2,7 @@
     import { onDestroy, onMount } from "svelte";
     import { wsClient } from "$lib/stores/websocket-client";
     import Whiteboard, { type Tool, type WhiteboardElement } from "$lib/whiteboard";
-    import AiChat from "$lib/components/AiChat.svelte";
+    import { templates } from "$lib/templates";
 
     let { data }: { data: { hash: string; lobbyName: string; user: { id: number; name: string } } } = $props();
 
@@ -39,10 +39,14 @@
 
     const handleState = (event: unknown) => {
         if (!event || typeof event !== "object") return;
-        const { elements } = event as { elements?: { data: unknown }[] };
-        if (!Array.isArray(elements)) return;
-        for (const stored of elements) {
-            if (stored?.data) whiteboard?.addElement(stored.data as WhiteboardElement);
+        const { elements, templateId } = event as { elements?: { data: unknown }[]; templateId?: string | null };
+        if (Array.isArray(elements)) {
+            for (const stored of elements) {
+                if (stored?.data) whiteboard?.addElement(stored.data as WhiteboardElement);
+            }
+        }
+        if (templateId) {
+            whiteboard?.setTemplate(templates.find(t => t.id === templateId) ?? null);
         }
     };
 
@@ -62,6 +66,12 @@
         }
     };
 
+    const handleCursorLeave = (event: unknown) => {
+        if (!event || typeof event !== "object") return;
+        const { userId } = event as { userId?: number };
+        if (userId != null) whiteboard?.removePeerCursor(userId);
+    };
+
     // --- Undo ---
 
     function undo() {
@@ -76,6 +86,10 @@
             e.preventDefault();
             undo();
         }
+    }
+
+    function handleMouseLeave() {
+        wsClient?.emit("whiteboard:cursor:leave", { hash: data.hash });
     }
 
     // --- Canvas setup ---
@@ -100,13 +114,15 @@
     onMount(() => {
         setupCanvas();
         window.addEventListener("keydown", handleKeydown);
+        window.addEventListener("mouseleave", handleMouseLeave);
 
         if (wsClient) {
             unsubscribeStatus = wsClient.status.subscribe((s) => { wsStatus = s; });
-            wsClient.on("whiteboard:sync",   handleSync);
-            wsClient.on("whiteboard:state",  handleState);
-            wsClient.on("whiteboard:undo",   handleUndo);
-            wsClient.on("whiteboard:cursor", handleCursor);
+            wsClient.on("whiteboard:sync",         handleSync);
+            wsClient.on("whiteboard:state",        handleState);
+            wsClient.on("whiteboard:undo",         handleUndo);
+            wsClient.on("whiteboard:cursor",       handleCursor);
+            wsClient.on("whiteboard:cursor:leave", handleCursorLeave);
             wsClient.emit("whiteboard:join", { hash: data.hash });
         }
     });
@@ -114,10 +130,12 @@
     onDestroy(() => {
         unsubscribeStatus?.();
         window.removeEventListener("keydown", handleKeydown);
-        wsClient?.off("whiteboard:sync",   handleSync);
-        wsClient?.off("whiteboard:state",  handleState);
-        wsClient?.off("whiteboard:undo",   handleUndo);
-        wsClient?.off("whiteboard:cursor", handleCursor);
+        window.removeEventListener("mouseleave", handleMouseLeave);
+        wsClient?.off("whiteboard:sync",         handleSync);
+        wsClient?.off("whiteboard:state",        handleState);
+        wsClient?.off("whiteboard:undo",         handleUndo);
+        wsClient?.off("whiteboard:cursor",       handleCursor);
+        wsClient?.off("whiteboard:cursor:leave", handleCursorLeave);
     });
 
     const tools: { id: Tool; label: string; icon: string }[] = [
@@ -125,16 +143,18 @@
         { id: "line",    label: "Vonal",     icon: "╱" },
         { id: "rect",    label: "Téglalap",  icon: "□" },
         { id: "ellipse", label: "Ellipszis", icon: "○" },
+        { id: "text",    label: "Szöveg",    icon: "T" },
         { id: "eraser",  label: "Radír",     icon: "⌫" },
         { id: "pan",     label: "Mozgatás",  icon: "✋" },
     ];
 
     const cursorMap: Record<Tool, string> = {
-        pen:     "crosshair",
-        line:    "crosshair",
-        rect:    "crosshair",
-        ellipse: "crosshair",
-        eraser:  "cell",
+        pen:     "none",
+        line:    "none",
+        rect:    "none",
+        ellipse: "none",
+        text:    "none",
+        eraser:  "none",
         pan:     "grab",
     };
 </script>
@@ -286,12 +306,12 @@
     }
 
     .tool-btn .icon {
-        font-size: 1.1rem;
+        font-size: var(--toolbar-icon-font, 1.1rem);
         line-height: 1;
     }
 
     .tool-btn .label {
-        font-size: 0.6rem;
+        font-size: var(--toolbar-label-font, 0.6rem);
         white-space: nowrap;
     }
 
@@ -351,5 +371,3 @@
         display: block;
     }
 </style>
-
-<AiChat />

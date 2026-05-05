@@ -3,10 +3,11 @@ import { error, json } from "@sveltejs/kit";
 
 import { checkSession } from "$lib/server/checkSession";
 import { lobbyManager } from "$lib/server/lobby";
+import { WebSocketManager } from "$lib/server/websocket";
 import UserTable from "$lib/server/database/user";
 import db from "$lib/server/db";
 
-export const POST: RequestHandler = async ({ params, cookies }) => {
+export const POST: RequestHandler = async ({ params, cookies, request }) => {
     const session = checkSession(cookies);
     if (!session.loggedIn || !session.user) {
         error(401, "Unauthorized");
@@ -28,6 +29,10 @@ export const POST: RequestHandler = async ({ params, cookies }) => {
         lobbyManager.leaveLobby(existing.hash, user.id);
     }
 
-    const lobby = lobbyManager.createLobby(name, user.id);
+    const body = await request.json().catch(() => ({}));
+    const templateId = typeof body.templateId === 'string' && body.templateId ? body.templateId : undefined;
+
+    const lobby = lobbyManager.createLobby(name, user.id, templateId);
+    WebSocketManager.getInstance().emit("lobby:update", lobbyManager.getLobbies());
     return json(lobby, { status: 201 });
 };

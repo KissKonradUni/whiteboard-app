@@ -5,6 +5,8 @@ import SessionsTable from "./database/session";
 import UserTable from "./database/user";
 import UserStatsTable from "./database/user_stats";
 import { lobbyManager } from "./lobby";
+import { matchmakingManager } from "./matchmaking";
+import { templates } from "../templates";
 
 export class WebSocketManager {
     private static instance: WebSocketManager;
@@ -82,9 +84,13 @@ export class WebSocketManager {
                 // Track session stats
                 new UserStatsTable(db).incrementSessions(user.id);
 
-                // Send current canvas state to the joining client
+                // Send current canvas state (elements + optional template) to the joining client
                 const elements = lobbyManager.getElements(hash);
-                socket.emit('whiteboard:state', { elements });
+                const lobby = lobbyManager.getLobby(hash);
+                socket.emit('whiteboard:state', {
+                    elements,
+                    templateId: lobby?.templateId ?? null,
+                });
             });
 
             socket.on('whiteboard:sync', (data: unknown) => {
@@ -125,6 +131,11 @@ export class WebSocketManager {
                 const elementId = (data as { elementId?: unknown }).elementId;
                 if (typeof elementId !== 'string') return;
 
+                // Only allow removing elements owned by the requesting user
+                const elements = lobbyManager.getElements(hash);
+                const element = elements.find(e => e.id === elementId);
+                if (!element || element.userId !== userId) return;
+
                 lobbyManager.removeElement(hash, elementId);
                 socket.to(this.getLobbyRoom(hash)).emit('whiteboard:undo', { elementId });
             });
@@ -146,6 +157,58 @@ export class WebSocketManager {
                     x: d.x,
                     y: d.y,
                 });
+            });
+
+            socket.on('whiteboard:cursor:leave', (data: unknown) => {
+                const hash = this.extractHash(data);
+                if (!hash || socket.data.lobbyHash !== hash) return;
+                const userId = socket.data.userId as number | undefined;
+                if (!userId) return;
+                socket.to(this.getLobbyRoom(hash)).emit('whiteboard:cursor:leave', { userId });
+            });
+
+            socket.on('matchmaking:join', () => {
+                const user = this.resolveUserFromSocket(socket);
+                if (!user) return;
+
+                // Must not be in a lobby already
+                if (lobbyManager.getUserLobby(user.id)) {
+                    socket.emit('matchmaking:error', { message: 'Először hagyd el az aktuális lobbyt.' });
+                    return;
+                }
+
+                matchmakingManager.enqueue({ userId: user.id, userName: user.name, socketId: socket.id });
+                socket.emit('matchmaking:waiting');
+
+                const match = matchmakingManager.tryMatch();
+                if (match) {
+                    const [a, b] = match;
+                    const lobbyName = `${a.userName} & ${b.userName}`;
+                    const randomTemplate = templates[Math.floor(Math.random() * templates.length)];
+                    const lobby = lobbyManager.createLobby(lobbyName, a.userId, randomTemplate.id);
+                    lobbyManager.joinLobby(lobby.hash, b.userId);
+
+                    io.to(a.socketId).emit('matchmaking:matched', { hash: lobby.hash });
+                    io.to(b.socketId).emit('matchmaking:matched', { hash: lobby.hash });
+                    io.emit('lobby:update', lobbyManager.getLobbies());
+                }
+            });
+
+            socket.on('matchmaking:leave', () => {
+                const userId = socket.data.userId as number | undefined;
+                const user = userId ? { id: userId } : this.resolveUserFromSocket(socket);
+                if (user) matchmakingManager.dequeue(user.id);
+                socket.emit('matchmaking:cancelled');
+            });
+
+            socket.on('disconnect', () => {
+                const hash = socket.data.lobbyHash as string | undefined;
+                const userId = socket.data.userId as number | undefined;
+                if (hash && userId) {
+                    socket.to(this.getLobbyRoom(hash)).emit('whiteboard:cursor:leave', { userId });
+                }
+                // Remove from matchmaking queue on disconnect
+                if (userId) matchmakingManager.dequeue(userId);
             });
         });
 

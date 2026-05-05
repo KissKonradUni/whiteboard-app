@@ -1,6 +1,15 @@
 <script lang="ts">
     type Message = { role: 'user' | 'assistant'; content: string };
 
+    let {
+        enabled = true,
+    }: {
+        enabled?: boolean;
+    } = $props();
+
+    // Dismissed for the current navigation session (resets on full page reload)
+    let sessionHidden = $state(false);
+
     let open = $state(false);
     let input = $state('');
     let messages: Message[] = $state([]);
@@ -8,7 +17,14 @@
     let error = $state('');
     let chatEl: HTMLDivElement | null = $state(null);
 
-    function toggle() { open = !open; }
+    function toggle() {
+        open = !open;
+    }
+
+    function dismiss() {
+        open = false;
+        sessionHidden = true;
+    }
 
     function scrollToBottom() {
         setTimeout(() => {
@@ -105,52 +121,55 @@
     }
 </script>
 
-<!-- Floating button -->
-<button class="fab" class:open onclick={toggle} title="AI Segítő">
-    {open ? '✕' : '?'}
-</button>
+{#if enabled && !sessionHidden}
+    <!-- Floating button -->
+    <button class="fab" class:open onclick={toggle} title="AI Segítő">
+        {open ? '✕' : '?'}
+    </button>
 
-<!-- Chat panel -->
-{#if open}
-    <div class="panel">
-        <div class="panel-header">
-            <span>AI Segítő</span>
-            <span class="model-tag">Haiku</span>
+    <!-- Chat panel -->
+    {#if open}
+        <div class="panel">
+            <div class="panel-header">
+                <span>AI Segítő</span>
+                <span class="model-tag">Haiku</span>
+                <button class="dismiss-btn" onclick={dismiss} title="Elrejtés a session végéig">✕</button>
+            </div>
+
+            <div class="messages" bind:this={chatEl}>
+                {#if messages.length === 0}
+                    <p class="hint">Kérdezz bármit az alkalmazás használatáról!</p>
+                {/if}
+
+                {#each messages as msg}
+                    <div class="bubble {msg.role}">
+                        {#if msg.role === 'assistant' && msg.content === '' && loading}
+                            <span class="typing">●●●</span>
+                        {:else}
+                            {msg.content}
+                        {/if}
+                    </div>
+                {/each}
+
+                {#if error}
+                    <div class="error-msg">{error}</div>
+                {/if}
+            </div>
+
+            <div class="input-row">
+                <textarea
+                    bind:value={input}
+                    onkeydown={handleKeydown}
+                    placeholder="Írj üzenetet… (Enter = küld)"
+                    rows="2"
+                    disabled={loading}
+                ></textarea>
+                <button class="send-btn" onclick={send} disabled={loading || !input.trim()}>
+                    {loading ? '…' : '➤'}
+                </button>
+            </div>
         </div>
-
-        <div class="messages" bind:this={chatEl}>
-            {#if messages.length === 0}
-                <p class="hint">Kérdezz bármit az alkalmazás használatáról!</p>
-            {/if}
-
-            {#each messages as msg}
-                <div class="bubble {msg.role}">
-                    {#if msg.role === 'assistant' && msg.content === '' && loading}
-                        <span class="typing">●●●</span>
-                    {:else}
-                        {msg.content}
-                    {/if}
-                </div>
-            {/each}
-
-            {#if error}
-                <div class="error-msg">{error}</div>
-            {/if}
-        </div>
-
-        <div class="input-row">
-            <textarea
-                bind:value={input}
-                onkeydown={handleKeydown}
-                placeholder="Írj üzenetet… (Enter = küld)"
-                rows="2"
-                disabled={loading}
-            ></textarea>
-            <button class="send-btn" onclick={send} disabled={loading || !input.trim()}>
-                {loading ? '…' : '➤'}
-            </button>
-        </div>
-    </div>
+    {/if}
 {/if}
 
 <style>
@@ -200,7 +219,7 @@
     .panel-header {
         display: flex;
         align-items: center;
-        justify-content: space-between;
+        gap: 0.5rem;
         padding: 0.75rem 1rem;
         font-weight: bold;
         font-size: 0.9rem;
@@ -215,7 +234,28 @@
         background: #ffffff22;
         padding: 0.1em 0.5em;
         border-radius: 999px;
+        flex: 1;
     }
+
+    .dismiss-btn {
+        width: 1.4rem;
+        height: 1.4rem;
+        border-radius: 50%;
+        border: none;
+        background: #ffffff22;
+        color: inherit;
+        font-size: 0.75rem;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        line-height: 1;
+        flex-shrink: 0;
+        transition: background 0.1s;
+    }
+
+    .dismiss-btn:hover { background: #ffffff44; }
 
     .messages {
         flex: 1;

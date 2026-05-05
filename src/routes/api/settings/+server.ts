@@ -11,10 +11,14 @@ export const PATCH: RequestHandler = async ({ request, cookies }) => {
     }
 
     const body = await request.json();
-    const theme      = body.theme === 'light' ? 'light' : 'dark';
-    const gridVisible = body.grid_visible !== false;
-    const iconSize   = ['sm', 'md', 'lg'].includes(body.icon_size) ? body.icon_size : 'md';
+    const table = new UserSettingsTable(db);
+    const existing = table.getOrCreate(session.user.id);
 
-    new UserSettingsTable(db).upsert(session.user.id, theme, gridVisible, iconSize);
+    const theme         = body.theme === 'light' ? 'light' : body.theme === 'dark' ? 'dark' : existing.theme as 'dark' | 'light';
+    const gridVisible   = 'grid_visible'    in body ? body.grid_visible    !== false : existing.grid_visible !== 0;
+    const iconSize      = ['sm', 'md', 'lg'].includes(body.icon_size) ? body.icon_size : existing.icon_size;
+    const aiChatVisible = 'ai_chat_visible' in body ? body.ai_chat_visible !== false : existing.ai_chat_visible !== 0;
+
+    table.upsert(session.user.id, theme, gridVisible, iconSize, aiChatVisible);
     return json({ ok: true });
 };

@@ -4,6 +4,7 @@
     import type { Snippet } from 'svelte';
     import type { LayoutData } from './$types';
     import { wsClient } from '$lib/stores/websocket-client';
+    import AiChat from '$lib/components/AiChat.svelte';
 
     let { data, children }: { data: LayoutData; children: Snippet } = $props();
 
@@ -11,10 +12,11 @@
         return () => goto(path);
     }
 
-    // Apply theme from user settings (localStorage fallback for guests)
+    // Apply theme and icon size from user settings (localStorage fallback for guests)
     $effect(() => {
         const theme = data.theme ?? localStorage.getItem('theme') ?? 'dark';
         document.documentElement.setAttribute('data-theme', theme);
+        document.documentElement.setAttribute('data-icon-size', data.iconSize ?? 'md');
     });
 
     wsClient;
@@ -52,6 +54,10 @@
 </main>
 
 <footer>&copy; 2026 Whiteboard App</footer>
+
+{#if data.loggedIn}
+    <AiChat enabled={data.aiChatEnabled ?? true} />
+{/if}
 
 <style>
     header {
